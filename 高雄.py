@@ -529,7 +529,7 @@ if st.session_state.get("current_item"):
 
 # 尚未生成或選擇景點時，顯示首頁提示與熱門按鈕
 else:
-    st.markdown('<div class="main-title">高雄 38 行政區 × AI 即時美食景點導覽系統</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">高雄 50 家美食 × 50 個景點隨機導覽系統</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">【高雄商圈振興專案】由 Gemini AI 即時生成在地美食與特色景點，精準導流實體人潮！</div>', unsafe_allow_html=True)
 
     st.subheader("💡 簡單 3 步驟，探索高雄美食與景點")
