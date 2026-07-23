@@ -95,7 +95,7 @@ KAOHSIUNG_DISTRICTS = [
 # 景點仍維持原本 4 個主題分區，內容改由 Gemini 即時生成
 KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "自然景觀與園區", "購物商圈與市集"]
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 
 def _get_gemini_api_key():
@@ -244,12 +244,18 @@ with st.sidebar:
     selected_district = st.selectbox("📍 選擇區域商圈", district_options)
 
     with st.expander("📌 查看當前分組清單", expanded=False):
-        preview_items = get_items(is_food, selected_district)
+        preview_key = f"preview_{'food' if is_food else 'attr'}_{selected_district}"
+        if st.button("🔍 載入清單預覽", key=f"btn_{preview_key}", use_container_width=True):
+            st.session_state[preview_key] = get_items(is_food, selected_district)
+
+        preview_items = st.session_state.get(preview_key)
         if preview_items:
             for item in preview_items:
                 st.markdown(f"- **{item['name']}** ({item['type']})")
-        else:
+        elif preview_items is not None:
             st.caption("⚠️ 暫時無法取得 AI 即時資料，請稍後再試一次。")
+        else:
+            st.caption("點擊上方按鈕才會呼叫 AI 載入清單（避免浪費 API 額度）。")
 
     st.divider()
 
@@ -553,7 +559,7 @@ if st.session_state.get("current_item"):
 
 # 尚未生成或選擇景點時，顯示首頁提示與熱門按鈕
 else:
-    st.markdown('<div class="main-title">高雄即時美食景點導覽系統</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">高雄 38 行政區 × AI 即時美食景點導覽系統</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">【高雄商圈振興專案】由 Gemini AI 即時生成在地美食與特色景點，精準導流實體人潮！</div>', unsafe_allow_html=True)
 
     st.subheader("💡 簡單 3 步驟，探索高雄美食與景點")
