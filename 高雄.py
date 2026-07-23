@@ -129,9 +129,10 @@ ATTRACTION_ITEM_SCHEMA = {
         "type": {"type": "STRING"},
         "address": {"type": "STRING"},
         "hours": {"type": "STRING"},
+        "desc": {"type": "STRING"},
         "transport": {"type": "STRING"},
     },
-    "required": ["name", "type", "address", "hours", "transport"],
+    "required": ["name", "type", "address", "hours", "desc", "transport"],
 }
 
 
@@ -190,7 +191,7 @@ def generate_foods(district, api_key):
 - type：類型（例如「鴨肉飯/老字號小吃」）
 - address：地址（格式須為「高雄市{district}...」）
 - hours：營業時間
-- desc：40～80字特色簡介
+- desc：40～80字特色簡介。內容須聚焦在「這間店」本身：招牌菜色、風味特色、食材或烹調方式、在地人氣原因等，每間店的寫法都要不同，避免使用千篇一律的罐頭句子；可適度提及「{district}」在地飲食文化或街區氛圍作為背景，但主角是店家本身而非整個行政區。
 - parking_car：汽車停車資訊建議
 - parking_scooter：機車停車資訊建議
 - parking_bike：YouBike 站點資訊建議
@@ -209,6 +210,7 @@ def generate_attractions(zone, api_key):
 - type：類型（例如「文創展覽」）
 - address：地址（須為「高雄市...」的完整地址）
 - hours：開放時間
+- desc：40～80字特色簡介。內容須聚焦在「這個景點」本身：歷史背景、建築或自然特色、可以體驗的活動、值得造訪的理由等，每個景點的寫法都要不同，避免使用千篇一律的罐頭句子；可適度呼應「{zone}」這個主題分區的調性，但主角是景點本身，不要寫成美食介紹。
 - transport：建議的大眾運輸前往方式
 請直接輸出 JSON 陣列，不要加上任何其他文字或 Markdown 標記。"""
     return _call_gemini(prompt, ATTRACTION_ITEM_SCHEMA, api_key)
@@ -384,8 +386,13 @@ if st.session_state.get("current_item"):
         st.markdown(f"<h3 style='margin-top: -12px; margin-bottom: 4px; font-weight: bold;'>探索目標：{item['name']}</h3>", unsafe_allow_html=True)
         st.caption(f"📍 行政區劃：{district}")
         
-        # 動態取得 item['desc']，如果沒有介紹則顯示備用預設文字
-        item_desc = item.get('desc', f"歡迎來到【{item['name']}】！這裡代表著高雄港都豐富的文化與特色，非常適合親自來走走體驗。")
+        # 動態取得 item['desc']，如果沒有介紹則依美食／景點分別顯示不同的備用預設文字
+        is_food_now = st.session_state.get("current_is_food", is_food)
+        if is_food_now:
+            fallback_desc = f"歡迎品嚐【{item['name']}】！這是{district}在地人氣的{item.get('type', '美食小吃')}，不妨親自到店裡感受道地的高雄好味道。"
+        else:
+            fallback_desc = f"歡迎造訪【{item['name']}】！這是{district}深具代表性的{item.get('type', '景點')}，很適合安排時間親自走一趟細細體驗。"
+        item_desc = item.get('desc') or fallback_desc
         st.info(f"💡 **特色簡介**：{item_desc}")
 
         st.divider()
