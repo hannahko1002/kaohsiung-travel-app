@@ -95,9 +95,6 @@ KAOHSIUNG_DISTRICTS = [
 # 景點仍維持原本 4 個主題分區，內容改由 Gemini 即時生成
 KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "自然景觀與園區", "購物商圈與市集"]
 
-GEMINI_MODEL = "gemini-2.5-flash-lite"
-
-
 def _get_gemini_api_key():
     """優先讀取 Streamlit secrets，其次讀取環境變數 GEMINI_API_KEY。"""
     try:
@@ -138,8 +135,10 @@ ATTRACTION_ITEM_SCHEMA = {
 }
 
 
+GEMINI_MODEL_FALLBACKS = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash"]
+
+
 def _call_gemini(prompt, item_schema, api_key):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -148,25 +147,37 @@ def _call_gemini(prompt, item_schema, api_key):
             "temperature": 0.9,
         },
     }
-    resp = requests.post(url, json=payload, timeout=45)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Gemini API 回傳 HTTP {resp.status_code}：{resp.text[:500]}")
 
-    data = resp.json()
+    last_error = None
+    for model_name in GEMINI_MODEL_FALLBACKS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        resp = requests.post(url, json=payload, timeout=45)
 
-    if "candidates" not in data or not data["candidates"]:
-        block_reason = data.get("promptFeedback", {}).get("blockReason", "無 candidates 欄位")
-        raise RuntimeError(f"Gemini 未回傳任何內容（原因：{block_reason}）")
+        if resp.status_code == 404:
+            # 這個模型名稱已被 Google 下架/不存在，改試下一個備用模型
+            last_error = RuntimeError(f"模型 {model_name} 已無法使用（404），改嘗試下一個備用模型...")
+            continue
+        if resp.status_code != 200:
+            raise RuntimeError(f"Gemini API（{model_name}）回傳 HTTP {resp.status_code}：{resp.text[:500]}")
 
-    try:
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError) as e:
-        raise RuntimeError(f"Gemini 回傳格式不符預期：{data}") from e
+        data = resp.json()
 
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Gemini 回傳內容不是合法 JSON：{text[:500]}") from e
+        if "candidates" not in data or not data["candidates"]:
+            block_reason = data.get("promptFeedback", {}).get("blockReason", "無 candidates 欄位")
+            raise RuntimeError(f"Gemini（{model_name}）未回傳任何內容（原因：{block_reason}）")
+
+        try:
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError) as e:
+            raise RuntimeError(f"Gemini（{model_name}）回傳格式不符預期：{data}") from e
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Gemini（{model_name}）回傳內容不是合法 JSON：{text[:500]}") from e
+
+    raise last_error or RuntimeError("所有備用模型皆無法使用")
+
 
 
 @st.cache_data(ttl=3600, show_spinner="🤖 AI 正在為您搜尋在地美食小吃...")
