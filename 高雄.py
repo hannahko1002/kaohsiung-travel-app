@@ -95,7 +95,7 @@ KAOHSIUNG_DISTRICTS = [
 # 景點仍維持原本 4 個主題分區，內容改由 Gemini 即時生成
 KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "自然景觀與園區", "購物商圈與市集"]
 
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 
 def _get_gemini_api_key():
@@ -149,10 +149,24 @@ def _call_gemini(prompt, item_schema, api_key):
         },
     }
     resp = requests.post(url, json=payload, timeout=45)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        raise RuntimeError(f"Gemini API 回傳 HTTP {resp.status_code}：{resp.text[:500]}")
+
     data = resp.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(text)
+
+    if "candidates" not in data or not data["candidates"]:
+        block_reason = data.get("promptFeedback", {}).get("blockReason", "無 candidates 欄位")
+        raise RuntimeError(f"Gemini 未回傳任何內容（原因：{block_reason}）")
+
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Gemini 回傳格式不符預期：{data}") from e
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Gemini 回傳內容不是合法 JSON：{text[:500]}") from e
 
 
 @st.cache_data(ttl=3600, show_spinner="🤖 AI 正在為您搜尋在地美食小吃...")
@@ -272,12 +286,18 @@ if generate_btn:
     candidates = get_items(is_food, selected_district)
     selected_item = pick_next_item(candidates)
 
-    st.session_state["current_item"] = selected_item
-    st.session_state["current_district"] = selected_district
-    st.session_state["current_is_food"] = is_food
-    st.session_state["chat_history"] = []
+    if selected_item is None:
+        st.session_state.pop("current_item", None)
+        st.session_state.pop("current_district", None)
+        err_detail = st.session_state.get("gemini_error", "未知錯誤（可能是 API 額度用完或回傳格式異常）")
+        st.error(f"⚠️ 這次向 Gemini 取得「{selected_district}」的資料失敗，請稍後再試一次。\n\n錯誤詳情：{err_detail}")
+    else:
+        st.session_state["current_item"] = selected_item
+        st.session_state["current_district"] = selected_district
+        st.session_state["current_is_food"] = is_food
+        st.session_state["chat_history"] = []
 
-if "current_item" in st.session_state:
+if st.session_state.get("current_item"):
     item = st.session_state["current_item"]
     district = st.session_state["current_district"]
     maps_url = get_google_maps_url(item['address'], item['name'])
@@ -297,9 +317,13 @@ if "current_item" in st.session_state:
             is_food_now = st.session_state.get("current_is_food", is_food)
             candidates = get_items(is_food_now, selected_district)
             next_item = pick_next_item(candidates, st.session_state.get("current_item"))
-            st.session_state["current_item"] = next_item
-            st.session_state["chat_history"] = []
-            st.rerun()
+            if next_item is None:
+                err_detail = st.session_state.get("gemini_error", "未知錯誤（可能是 API 額度用完或回傳格式異常）")
+                st.error(f"⚠️ 這次無法取得新的推薦，請稍後再試一次。\n\n錯誤詳情：{err_detail}")
+            else:
+                st.session_state["current_item"] = next_item
+                st.session_state["chat_history"] = []
+                st.rerun()
 
     with btn_col3:
         @st.dialog("🔗 分享地點給好友")
@@ -529,7 +553,7 @@ if st.session_state.get("current_item"):
 
 # 尚未生成或選擇景點時，顯示首頁提示與熱門按鈕
 else:
-    st.markdown('<div class="main-title">高雄 50 家美食 × 50 個景點隨機導覽系統</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">高雄即時美食景點導覽系統</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">【高雄商圈振興專案】由 Gemini AI 即時生成在地美食與特色景點，精準導流實體人潮！</div>', unsafe_allow_html=True)
 
     st.subheader("💡 簡單 3 步驟，探索高雄美食與景點")
