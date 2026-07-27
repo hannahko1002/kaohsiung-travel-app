@@ -368,8 +368,16 @@ def _call_gemini(prompt, item_schema, api_key):
 
     last_error = None
     for model_name in GEMINI_MODEL_FALLBACKS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-        resp = _post_gemini(url, payload, api_key)
+        # 💡 【修改 1】：把 api_key 拼在網址最後面的 ?key= 裡面
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key.strip()}"
+        
+        # 💡 【修改 2】：Header 裡面把 "x-goog-api-key" 拿掉，只留 Content-Type
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        resp = requests.post(url, json=payload, headers=headers, timeout=45)
+        # ... 後續程式碼保持不變 ...
 
         if resp.status_code == 404:
             # 這個模型名稱已被 Google 下架/不存在，改試下一個備用模型
