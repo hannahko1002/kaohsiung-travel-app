@@ -222,10 +222,13 @@ KAOHSIUNG_DISTRICTS = [
 # 景點仍維持原本 4 個主題分區，內容改由 Gemini 即時生成
 KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "自然景觀與園區", "購物商圈與市集"]
 
-# ⚠️ 直接寫死在程式碼中的 Gemini API 金鑰（請直接把下面的字串換成你自己的金鑰）。
-# 注意：這種寫法方便本機測試，但如果之後要把程式碼上傳到 GitHub 等公開地方，
-# 記得把這組金鑰移除或改用 .streamlit/secrets.toml，避免金鑰外流。
-GEMINI_API_KEY_HARDCODED = "AQ.Ab8RN6Jen9C267xDnKzSsD1HiBJFYgSAOp-_v7rvakIes710Mg"
+def _get_gemini_api_key():
+    """優先讀取 Streamlit Secrets，若沒有則讀取環境變數或硬編碼金鑰。"""
+    if "GEMINI_API_KEY" in st.secrets:
+        return st.secrets["GEMINI_API_KEY"]
+    if "GEMINI_API_KEY_HARDCODED" in st.secrets:
+        return st.secrets["GEMINI_API_KEY_HARDCODED"]
+    return os.environ.get("GEMINI_API_KEY", "")
 
 
 def _get_gemini_api_key():
