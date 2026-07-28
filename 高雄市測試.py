@@ -173,7 +173,7 @@ if st.session_state["auth_status"] is None:
         with login_tab:
             login_user = st.text_input("帳號", key="login_user_input", placeholder="名稱")
             login_pw = st.text_input("密碼", type="password", key="login_pw_input")
-            if st.button("登入", type="primary", use_container_width=True):
+            if st.button("登入", type="primary", use_container_width=True): 
                 if verify_login(login_user, login_pw):
                     st.session_state["auth_status"] = login_user.strip()
                     st.rerun()
@@ -273,12 +273,6 @@ def _debug_api_key_status():
                 "`ya29.` 開頭）。請到 "
                 "[Google AI Studio](https://aistudio.google.com/apikey) 重新產生正確的 API Key。"
             )
-    else:
-        lines.append(
-            "請把程式碼最上方 `GEMINI_API_KEY_HARDCODED = \"AQ.Ab8RN6Jen9C267xDnKzSsD1HiBJFYgSAOp-_v7rvakIes710Mg\"` "
-            "這一行的字串換成你在 Google AI Studio 產生的實際金鑰。"
-        )
-
     return "\n\n".join(lines)
 
 
