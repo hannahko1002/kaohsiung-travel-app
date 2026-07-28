@@ -608,12 +608,12 @@ KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "�
 # ⚠️ 直接寫死在程式碼中的 Gemini API 金鑰（請直接把下面的字串換成你自己的金鑰）。
 # 注意：這種寫法方便本機測試，但如果之後要把程式碼上傳到 GitHub 等公開地方，
 # 記得把這組金鑰移除或改用 .streamlit/secrets.toml，避免金鑰外流。
-GEMINI_API_KEY_HARDCODED = "AQ.Ab8RN6I-nAMhP1QYcYa1HIrN9m5LaTgHYzEKOxjBJFO5BOD-hQ"
+GEMINI_API_KEY = "AQ.Ab8RN6I-nAMhP1QYcYa1HIrN9m5LaTgHYzEKOxjBJFO5BOD-hQ"
 
 
 def _get_gemini_api_key():
     """直接回傳寫死在程式碼中的 Gemini API 金鑰。"""
-    return GEMINI_API_KEY_HARDCODED
+    return GEMINI_API_KEY
 
 
 def _is_valid_gemini_key_format(key):
@@ -637,9 +637,9 @@ def _debug_api_key_status():
     """回傳除錯資訊字串，協助排查為什麼 Gemini API 金鑰無法使用。"""
     lines = []
 
-    val = GEMINI_API_KEY_HARDCODED
+    val = GEMINI_API_KEY
     has_key = bool(val) and val != "請貼上你的 Gemini API 金鑰"
-    lines.append(f"🔑 程式碼中{'✅ 已' if has_key else '❌ 尚未'}貼上實際的 GEMINI_API_KEY_HARDCODED 金鑰")
+    lines.append(f"🔑 程式碼中{'✅ 已' if has_key else '❌ 尚未'}貼上實際的 GEMINI_API_KEY 金鑰")
 
     if has_key:
         preview = f"{val[:6]}...{val[-4:]}" if val and len(val) > 12 else "(空值或太短)"
@@ -655,7 +655,7 @@ def _debug_api_key_status():
             )
     else:
         lines.append(
-            "請把程式碼最上方 `GEMINI_API_KEY_HARDCODED = \"AQ.Ab8RN6I-nAMhP1QYcYa1HIrN9m5LaTgHYzEKOxjBJFO5BOD-hQ\"` "
+            "請把程式碼最上方 `GEMINI_API_KEY = \"AQ.Ab8RN6I-nAMhP1QYcYa1HIrN9m5LaTgHYzEKOxjBJFO5BOD-hQ\"` "
             "這一行的字串換成你在 Google AI Studio 產生的實際金鑰。"
         )
 
@@ -856,7 +856,7 @@ if not _GEMINI_KEY_RAW or _GEMINI_KEY_RAW == "請貼上你的 Gemini API 金鑰"
     st.error(
         "⚠️ 尚未設定 Gemini API 金鑰，無法載入即時資料。\n\n"
         "請打開程式碼，找到最上方這一行，把它換成你自己的金鑰：\n\n"
-        "```python\nGEMINI_API_KEY_HARDCODED = \"請貼上你的 Gemini API 金鑰\"\n```\n\n"
+        "```python\nGEMINI_API_KEY = \"請貼上你的 Gemini API 金鑰\"\n```\n\n"
         "金鑰請到 https://aistudio.google.com/apikey 產生"
         "（目前 AI Studio 新產生的金鑰是 `AQ.` 開頭，是正常的新版格式；"
         "舊版 `AIzaSy` 開頭的金鑰也還能用，但即將於 2026 年 9 月停用）。"
@@ -867,7 +867,7 @@ if not _GEMINI_KEY_RAW or _GEMINI_KEY_RAW == "請貼上你的 Gemini API 金鑰"
 
 if not _is_valid_gemini_key_format(_GEMINI_KEY_RAW):
     st.error(
-        "⚠️ 目前設定的 GEMINI_API_KEY_HARDCODED **格式不正確**，不是有效的 Gemini API 金鑰，"
+        "⚠️ 目前設定的 GEMINI_API_KEY **格式不正確**，不是有效的 Gemini API 金鑰，"
         "無法載入即時資料。\n\n"
         "常見原因：誤貼成 Google 帳號的 OAuth 登入權杖（通常是 `ya29.` 開頭），"
         "這種權杖無法用來呼叫 Gemini API。\n\n"
@@ -875,7 +875,7 @@ if not _is_valid_gemini_key_format(_GEMINI_KEY_RAW):
         "1. 前往 https://aistudio.google.com/apikey\n"
         "2. 點「Create API key」產生一組金鑰（`AQ.` 或 `AIzaSy` 開頭皆可）\n"
         "3. 回到程式碼最上方，更新：\n\n"
-        "```python\nGEMINI_API_KEY_HARDCODED = \"你剛剛產生的金鑰\"\n```"
+        "```python\nGEMINI_API_KEY = \"你剛剛產生的金鑰\"\n```"
     )
     with st.expander("🔧 疑難排解：點我看詳細除錯資訊（截圖這裡給人看最準）", expanded=True):
         st.markdown(_debug_api_key_status())
