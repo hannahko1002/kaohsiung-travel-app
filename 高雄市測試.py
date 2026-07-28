@@ -222,18 +222,27 @@ KAOHSIUNG_DISTRICTS = [
 # 景點仍維持原本 4 個主題分區，內容改由 Gemini 即時生成
 KAOHSIUNG_ATTRACTION_ZONES = ["港灣與文創區", "歷史人文與古蹟", "自然景觀與園區", "購物商圈與市集"]
 
+
+def _get_secret(name, default=""):
+    """安全地從 Streamlit Secrets 讀取指定金鑰，若 secrets.toml 不存在或沒有該欄位則回傳 default。"""
+    try:
+        return st.secrets.get(name, default)
+    except Exception:
+        return default
+
+
 def _get_gemini_api_key():
-    """優先讀取 Streamlit Secrets，若沒有則讀取環境變數或硬編碼金鑰。"""
-    if "GEMINI_API_KEY" in st.secrets:
-        return st.secrets["GEMINI_API_KEY"]
-    if "GEMINI_API_KEY_HARDCODED" in st.secrets:
-        return st.secrets["GEMINI_API_KEY_HARDCODED"]
+    """從 Streamlit Secrets 讀取 Gemini API 金鑰，其次讀取環境變數。
+
+    請勿把金鑰寫死在程式碼中。設定方式：
+    - 本機開發：在專案目錄建立 `.streamlit/secrets.toml`，加入：
+        GEMINI_API_KEY = "你的金鑰"
+    - Streamlit Community Cloud：App → Settings → Secrets，貼上同樣內容。
+    """
+    key = _get_secret("GEMINI_API_KEY", "")
+    if key:
+        return key
     return os.environ.get("GEMINI_API_KEY", "")
-
-
-def _get_gemini_api_key():
-    """直接回傳寫死在程式碼中的 Gemini API 金鑰。"""
-    return GEMINI_API_KEY_HARDCODED
 
 
 def _is_valid_gemini_key_format(key):
@@ -257,9 +266,9 @@ def _debug_api_key_status():
     """回傳除錯資訊字串，協助排查為什麼 Gemini API 金鑰無法使用。"""
     lines = []
 
-    val = GEMINI_API_KEY_HARDCODED
-    has_key = bool(val) and val != "請貼上你的 Gemini API 金鑰"
-    lines.append(f"🔑 程式碼中{'✅ 已' if has_key else '❌ 尚未'}貼上實際的 GEMINI_API_KEY_HARDCODED 金鑰")
+    val = _get_gemini_api_key()
+    has_key = bool(val)
+    lines.append(f"🔑 Streamlit Secrets（或環境變數）中{'✅ 已' if has_key else '❌ 尚未'}設定 GEMINI_API_KEY")
 
     if has_key:
         preview = f"{val[:6]}...{val[-4:]}" if val and len(val) > 12 else "(空值或太短)"
@@ -463,11 +472,13 @@ def get_items(is_food, key):
 
 _GEMINI_KEY_RAW = _get_gemini_api_key()
 
-if not _GEMINI_KEY_RAW or _GEMINI_KEY_RAW == "請貼上你的 Gemini API 金鑰":
+if not _GEMINI_KEY_RAW:
     st.error(
         "⚠️ 尚未設定 Gemini API 金鑰，無法載入即時資料。\n\n"
-        "請打開程式碼，找到最上方這一行，把它換成你自己的金鑰：\n\n"
-        "```python\nGEMINI_API_KEY_HARDCODED = \"請貼上你的 Gemini API 金鑰\"\n```\n\n"
+        "請在 **Streamlit Secrets** 中新增（不要寫在程式碼裡）：\n\n"
+        "```toml\nGEMINI_API_KEY = \"你的金鑰\"\n```\n\n"
+        "- 本機開發：在專案目錄建立 `.streamlit/secrets.toml`，貼上以上內容。\n"
+        "- 部署到 Streamlit Community Cloud：進入 App → Settings → Secrets，貼上以上內容並儲存。\n\n"
         "金鑰請到 https://aistudio.google.com/apikey 產生"
         "（目前 AI Studio 新產生的金鑰是 `AQ.` 開頭，是正常的新版格式；"
         "舊版 `AIzaSy` 開頭的金鑰也還能用，但即將於 2026 年 9 月停用）。"
@@ -478,15 +489,15 @@ if not _GEMINI_KEY_RAW or _GEMINI_KEY_RAW == "請貼上你的 Gemini API 金鑰"
 
 if not _is_valid_gemini_key_format(_GEMINI_KEY_RAW):
     st.error(
-        "⚠️ 目前設定的 GEMINI_API_KEY_HARDCODED **格式不正確**，不是有效的 Gemini API 金鑰，"
+        "⚠️ Streamlit Secrets 中設定的 `GEMINI_API_KEY` **格式不正確**，不是有效的 Gemini API 金鑰，"
         "無法載入即時資料。\n\n"
         "常見原因：誤貼成 Google 帳號的 OAuth 登入權杖（通常是 `ya29.` 開頭），"
         "這種權杖無法用來呼叫 Gemini API。\n\n"
         "請改用以下步驟取得正確金鑰：\n\n"
         "1. 前往 https://aistudio.google.com/apikey\n"
         "2. 點「Create API key」產生一組金鑰（`AQ.` 或 `AIzaSy` 開頭皆可）\n"
-        "3. 回到程式碼最上方，更新：\n\n"
-        "```python\nGEMINI_API_KEY_HARDCODED = \"你剛剛產生的金鑰\"\n```"
+        "3. 到 Streamlit Secrets 更新：\n\n"
+        "```toml\nGEMINI_API_KEY = \"你剛剛產生的金鑰\"\n```"
     )
     with st.expander("🔧 疑難排解：點我看詳細除錯資訊（截圖這裡給人看最準）", expanded=True):
         st.markdown(_debug_api_key_status())
@@ -741,9 +752,15 @@ if st.session_state.get("current_item"):
                     # 🙈 關閉 SSL 安全警告訊息
                     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-                    # 🔑 貼上你剛剛測試成功的 API Key
-                    CWA_API_KEY = "CWA-FE43BB08-FB1C-44AA-9236-4A0E0F221D5C".strip()
-                    
+                    # 🔑 從 Streamlit Secrets 讀取中央氣象署 API Key（不要寫死在程式碼中）
+                    CWA_API_KEY = str(_get_secret("CWA_API_KEY", "")).strip()
+                    if not CWA_API_KEY:
+                        raise Exception(
+                            "尚未在 Streamlit Secrets 設定 CWA_API_KEY。"
+                            "請於 secrets.toml 或 Streamlit Cloud → Settings → Secrets 中新增："
+                            'CWA_API_KEY = "你的中央氣象署金鑰"'
+                        )
+
                     # 💡 關鍵：直接將 Key 帶在網址 URL 裡面（不要放在 headers）
                     url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-065?Authorization={CWA_API_KEY}"
                     
